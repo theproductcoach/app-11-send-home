@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Should I Send Money Home?
+
+A simple, elegant web application that helps you decide the best time to make international money transfers based on exchange rates. The app compares current exchange rates with historical data to recommend whether you should transfer money now or wait for better rates.
+
+## Features
+
+- 🔄 Real-time exchange rate checking
+- 📊 Comparison with 6-month historical average
+- 🌍 Support for major currencies (GBP, USD, EUR, AUD, CAD, JPY, INR)
+- 🎯 Smart recommendation system
+- 🎉 Celebratory animation for favorable rates
+- 📱 Responsive design that works on all devices
+
+## How It Works
+
+The app helps you make informed decisions about international money transfers by:
+
+1. Fetching the current exchange rate for your selected currency pair
+2. Calculating the average rate over the past 6 months
+3. Comparing the current rate with the historical average
+4. Recommending to "send now" if the current rate is at least 2% better than average
+5. Displaying detailed information about the rates and the difference
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ installed on your system
+- npm or yarn package manager
+
+### Installation
+
+1. Clone the repository:
+
+```bash
+git clone [repository-url]
+cd should-i-send-money-home
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Create a `.env.local` file in the root directory:
+
+```
+NEXT_PUBLIC_API_BASE_URL=your_api_key_here
+```
+
+4. Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Select your source currency ("From Currency")
+2. Select your target currency ("To Currency")
+3. Click "Check Now"
+4. The app will display either:
+   - ✅ "Yes, send now!" with a celebration animation if the rate is favorable
+   - ❌ "No, wait" if you should hold off
+5. View the detailed explanation showing:
+   - Current exchange rate
+   - Comparison with the 6-month average
+   - Percentage difference
 
-## Learn More
+## Technology Stack
 
-To learn more about Next.js, take a look at the following resources:
+- [Next.js](https://nextjs.org/) - React framework
+- [Tailwind CSS](https://tailwindcss.com/) - Styling
+- [Canvas Confetti](https://www.npmjs.com/package/canvas-confetti) - Celebration effects
+- [Exchange Rate API](https://exchangerate.host) - Exchange rate data
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Acknowledgments
+
+- Exchange rate data provided by [exchangerate.host](https://exchangerate.host)
+- UI inspiration from modern fintech applications
+- Built with ❤️ for international money transfer users
