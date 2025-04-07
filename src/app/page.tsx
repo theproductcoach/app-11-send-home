@@ -13,7 +13,7 @@ const CURRENCIES = [
 ];
 
 const API_KEY = process.env.NEXT_PUBLIC_API_BASE_URL;
-const API_BASE_URL = "http://api.exchangerate.host";
+const API_BASE_URL = "https://api.exchangerate.host";
 
 export default function Home() {
   const [result, setResult] = useState<{
