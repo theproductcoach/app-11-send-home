@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import confetti from "canvas-confetti";
 
 const CURRENCIES = [
   { code: "GBP", name: "British Pound" },
@@ -12,84 +13,94 @@ const CURRENCIES = [
   { code: "JPY", name: "Japanese Yen" },
 ];
 
-const API_KEY = process.env.NEXT_PUBLIC_API_BASE_URL;
-const API_BASE_URL = "https://api.exchangerate.host";
-
 export default function Home() {
+  const [fromCurrency, setFromCurrency] = useState("GBP");
+  const [toCurrency, setToCurrency] = useState("AUD");
+  const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{
     decision: string;
     explanation: string;
-    isPositive: boolean;
   } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [fromCurrency, setFromCurrency] = useState("GBP");
-  const [toCurrency, setToCurrency] = useState("AUD");
   const [shouldTriggerConfetti, setShouldTriggerConfetti] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-  // Handle confetti effect
   useEffect(() => {
-    if (shouldTriggerConfetti) {
-      import("canvas-confetti").then((confetti) => {
-        confetti.default({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ["#4CAF50", "#8BC34A", "#CDDC39", "#FFEB3B", "#FFC107"],
-        });
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (shouldTriggerConfetti && isClient) {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#4CAF50", "#8BC34A", "#CDDC39", "#FFEB3B", "#FFC107"],
       });
       setShouldTriggerConfetti(false);
     }
-  }, [shouldTriggerConfetti]);
+  }, [shouldTriggerConfetti, isClient]);
 
   const checkRate = async () => {
     setIsLoading(true);
     try {
       // Get current rate
       const currentResponse = await fetch(
-        `${API_BASE_URL}/live?access_key=${API_KEY}&source=${fromCurrency}&currencies=${toCurrency}&format=1`
+        `/api/exchange-rates?from=${fromCurrency}&to=${toCurrency}`
       );
-      const currentData = await currentResponse.json();
 
-      if (!currentData.success) {
+      if (!currentResponse.ok) {
+        const errorData = await currentResponse.json();
         throw new Error(
-          currentData.error?.info || "Failed to fetch current rate"
+          errorData.error || `HTTP error! status: ${currentResponse.status}`
         );
       }
 
-      const currentRate = currentData.quotes[`${fromCurrency}${toCurrency}`];
+      const currentData = await currentResponse.json();
 
-      // Get historical data for the past 6 months
-      const dates = Array.from({ length: 6 }, (_, i) => {
-        const date = new Date();
+      if (currentData.error) {
+        throw new Error(currentData.error);
+      }
+
+      const currentRate = currentData.rates[toCurrency];
+
+      // Get historical rates for the last 6 months
+      const historicalRates: number[] = [];
+      const today = new Date();
+
+      // Sample one rate per month for the last 6 months
+      for (let i = 1; i <= 6; i++) {
+        const date = new Date(today);
         date.setMonth(date.getMonth() - i);
-        return date.toISOString().split("T")[0];
-      });
+        const historicalDate = date.toISOString().split("T")[0];
 
-      const historicalRates = await Promise.all(
-        dates.map(async (date) => {
-          const response = await fetch(
-            `${API_BASE_URL}/historical?access_key=${API_KEY}&date=${date}&source=${fromCurrency}&currencies=${toCurrency}&format=1`
+        const historicalResponse = await fetch(
+          `/api/exchange-rates?from=${fromCurrency}&to=${toCurrency}&date=${historicalDate}`
+        );
+
+        if (!historicalResponse.ok) {
+          const errorData = await historicalResponse.json();
+          throw new Error(
+            errorData.error ||
+              `HTTP error! status: ${historicalResponse.status}`
           );
-          const data = await response.json();
+        }
 
-          if (!data.success) {
-            throw new Error(
-              data.error?.info || "Failed to fetch historical rate"
-            );
-          }
+        const historicalData = await historicalResponse.json();
 
-          return data.quotes[`${fromCurrency}${toCurrency}`];
-        })
-      );
+        if (historicalData.error) {
+          throw new Error(historicalData.error);
+        }
 
-      // Calculate average rate
-      const averageRate =
-        historicalRates.reduce((sum, rate) => sum + rate, 0) /
-        historicalRates.length;
+        historicalRates.push(historicalData.rates[toCurrency]);
+      }
 
-      // Compare rates
+      // Calculate average historical rate
+      const averageHistoricalRate =
+        historicalRates.reduce((a, b) => a + b, 0) / historicalRates.length;
+
+      // Calculate percentage difference
       const percentageDifference =
-        ((currentRate - averageRate) / averageRate) * 100;
+        ((currentRate - averageHistoricalRate) / averageHistoricalRate) * 100;
 
       const shouldSend = percentageDifference >= 2;
 
@@ -106,14 +117,13 @@ ${
   shouldSend
     ? `This is ${percentageDifference.toFixed(
         1
-      )}% above the 6-month average of ${averageRate.toFixed(4)}`
+      )}% above the 6-month average rate (${averageHistoricalRate.toFixed(4)})`
     : `This is only ${
         percentageDifference > 0
           ? percentageDifference.toFixed(1) + "% above"
           : Math.abs(percentageDifference).toFixed(1) + "% below"
-      } the 6-month average of ${averageRate.toFixed(4)}`
+      } the 6-month average rate (${averageHistoricalRate.toFixed(4)})`
 }`,
-        isPositive: shouldSend,
       });
     } catch (error) {
       console.error("Error:", error);
@@ -121,12 +131,59 @@ ${
         decision: "Error fetching exchange rates",
         explanation:
           error instanceof Error ? error.message : "Unknown error occurred",
-        isPositive: false,
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Only render the full component on the client side
+  if (!isClient) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-900">
+        <div className="w-full max-w-md bg-white rounded-lg shadow-xl p-8">
+          <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+            Should I Send Money Home?
+            <div className="inline-block ml-2 relative group">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 inline-block text-gray-400 cursor-help"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                <p className="mb-2">
+                  The decision is based on comparing the current exchange rate
+                  with the average rate over the last 6 months:
+                </p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>We sample one rate per month for the last 6 months</li>
+                  <li>Calculate the average of these historical rates</li>
+                  <li>
+                    If the current rate is 2% or more above this average, we
+                    recommend sending money now
+                  </li>
+                  <li>Otherwise, we recommend waiting for a better rate</li>
+                </ul>
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-800"></div>
+              </div>
+            </div>
+          </h1>
+          <div className="animate-pulse">
+            <div className="h-10 bg-gray-200 rounded mb-4"></div>
+            <div className="h-10 bg-gray-200 rounded mb-4"></div>
+            <div className="h-12 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-900">
@@ -187,10 +244,29 @@ ${
           {isLoading ? "Checking..." : "Check Now"}
         </button>
 
+        <div className="mt-6 p-4 bg-gray-50 rounded-md border border-gray-200">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">
+            How is this calculated?
+          </h3>
+          <p className="text-sm text-gray-600 mb-2">
+            We compare the current exchange rate with the average rate over the
+            last 6 months:
+          </p>
+          <ul className="text-sm text-gray-600 list-disc pl-4 space-y-1">
+            <li>We sample one rate per month for the last 6 months</li>
+            <li>Calculate the average of these historical rates</li>
+            <li>
+              If the current rate is 2% or more above this average, we recommend
+              sending money now
+            </li>
+            <li>Otherwise, we recommend waiting for a better rate</li>
+          </ul>
+        </div>
+
         {result && (
           <div
             className={`mt-6 p-4 rounded-md text-center font-medium ${
-              result.isPositive
+              result.decision.includes("✅")
                 ? "bg-green-100 text-green-800"
                 : result.decision.includes("❌")
                 ? "bg-red-100 text-red-800"
